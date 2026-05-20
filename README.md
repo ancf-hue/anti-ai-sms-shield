@@ -1,6 +1,6 @@
 <img width="800" height="600" alt="ai_image" src="https://github.com/user-attachments/assets/6177c442-3852-4930-9a81-af9bdc548009" />
 
-🛡️ Anti-AI SMS Shield
+ Anti-AI SMS Shield
 ## ✨ Возможности
 
 | Режим | Принцип | Для чего |
