@@ -1,0 +1,36 @@
+# robots.txt для Анти ИИ | СМС Шифрование
+# https://anti-ai-sms-shield.vercel.app/
+
+User-agent: *
+Allow: /
+
+# ✅ Разрешаем индексацию главной страницы
+Allow: /index.html
+
+# ❌ Блокируем служебные и потенциально чувствительные пути
+Disallow: /api/
+Disallow: /admin/
+Disallow: /private/
+Disallow: /logs/
+Disallow: /*.json$
+Disallow: /*.log$
+Disallow: /*.tmp$
+
+# 🗺️ Указываем путь к карте сайта
+Sitemap: https://anti-ai-sms-shield.vercel.app/sitemap.xml
+
+# ⏱ Задержка для вежливого краулинга (опционально)
+Crawl-delay: 1
+
+# 🤖 Специфичные правила для крупных ботов
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 2
+
+User-agent: Yandex
+Allow: /
+Crawl-delay: 2
+
+User-agent: bingbot
+Allow: /
+Crawl-delay: 2
