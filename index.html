@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Анти ИИ | Шифрование СМС</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg: #020208; --surface: rgba(10,12,24,0.92);
+            --text: #e6eaf0; --muted: #8a92a6;
+            --accent: #00ffaa; --accent-glow: rgba(0,255,170,0.4);
+            --pink: #ff0055; --purple: #aa00ff; --blue: #0088ff;
+            --font: monospace; --radius: 8px; --transition: 0.2s ease;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            margin: 0; overflow: hidden; background: var(--bg);
+            font-family: var(--font); color: var(--text);
+            touch-action: none;
+        }
+        #app-container {
+            position: relative; width: 100vw; height: 100vh;
+            max-width: 56.25vh; max-height: 177.77vw;
+            margin: 0 auto; background: var(--surface);
+            backdrop-filter: blur(12px);
+            display: flex; flex-direction: column;
+            justify-content: space-between;
+            padding: 12px; box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        
+        /* === LOGO === */
+        #top-logo {
+            text-align: center; font-size: 14px; font-weight: 900;
+            color: var(--accent); text-shadow: 0 0 12px var(--accent-glow);
+            letter-spacing: 1.5px; padding: 6px 0;
+            border-bottom: 1px solid rgba(0,255,170,0.15);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer;
+        }
+        #top-logo img {
+            width: 24px; height: 24px; opacity: 0.95;
+            filter: drop-shadow(0 0 6px var(--accent-glow));
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+
+        /* === TABS === */
+        #tabs-header { display: flex; justify-content: space-between; margin: 8px 0 4px; gap: 3px; }
+        .tab-btn {
+            flex: 1; padding: 7px 3px; font-size: 9px; font-weight: bold;
+            background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+            color: var(--muted); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; cursor: pointer; font-family: var(--font);
+            text-align: center; transition: var(--transition);
+            backdrop-filter: blur(6px);
+        }
+        .tab-btn:hover { transform: translateY(-1px); border-color: var(--accent); color: var(--text); }
+        .tab-btn.active {
+            color: var(--accent); border-color: var(--accent);
+            background: rgba(0,255,170,0.12);
+            text-shadow: 0 0 8px var(--accent-glow);
+            box-shadow: 0 0 15px rgba(0,255,170,0.2);
+        }
+        .tab-content { display: none; flex-direction: column; flex-grow: 1; overflow-y: auto; padding-right: 1px; }
+        .tab-content.active { display: flex; }
+
+        .section-title { font-size: 10px; color: var(--pink); margin: 5px 0 2px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+        
+        textarea, input {
+            width: 100%; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 7px; box-sizing: border-box; color: var(--text);
+            font-family: var(--font); font-size: 12px; border-radius: 6px;
+            resize: none; outline: none; transition: var(--transition);
+        }
+        textarea:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,170,0.2); }
+        textarea { height: 60px; }
+        input { height: 32px; }
+        
+        #canvas-wrapper {
+            width: 100%; aspect-ratio: 4/3; background: #000;
+            border: 1px dashed rgba(255,255,255,0.1); border-radius: 6px;
+            margin: 4px 0; overflow: hidden; display: flex;
+            justify-content: center; align-items: center;
+        }
+        canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+        
+        #status-badge {
+            text-align: center; font-size: 10px; font-weight: bold;
+            color: var(--muted); padding: 3px; border-radius: 4px;
+            background: rgba(255,255,255,0.03); margin: 4px 0;
+            transition: var(--transition);
+        }
+        #status-badge.verified {
+            color: var(--accent); background: rgba(0,255,170,0.08);
+            border: 1px solid rgba(0,255,170,0.25);
+            text-shadow: 0 0 6px var(--accent-glow);
+        }
+        
+        .btn {
+            width: 100%; padding: 10px; font-size: 12px; font-weight: bold;
+            color: #fff; border: none; border-radius: 6px;
+            cursor: pointer; font-family: var(--font);
+            transition: var(--transition); margin-top: 3px;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            box-shadow: 0 3px 12px rgba(255,0,85,0.3);
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 5px 20px rgba(255,0,85,0.5); }
+        .btn:active { transform: scale(0.99); }
+        
+        .btn-copy {
+            background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            border: 1px solid rgba(0,255,170,0.25); color: var(--accent);
+            font-size: 10px; padding: 5px; margin-top: 2px;
+        }
+        .btn-copy:hover { background: rgba(0,255,170,0.15); }
+        
+        .btn-visual { background: linear-gradient(135deg, var(--blue), var(--purple)); box-shadow: 0 3px 12px rgba(0,136,255,0.3); }
+        .btn-crypto { background: linear-gradient(135deg, var(--purple), var(--pink)); box-shadow: 0 3px 12px rgba(170,0,255,0.3); }
+        .btn-decrypt { background: rgba(10,12,24,0.8); border: 1px solid var(--accent); color: var(--accent); }
+        
+        #donate-box {
+            width: 100%; background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(0,255,170,0.1); border-radius: 8px;
+            padding: 7px; box-sizing: border-box; text-align: center;
+            font-size: 9px; margin-top: 5px;
+            backdrop-filter: blur(6px);
+        }
+        #phone-num {
+            font-weight: bold; color: var(--accent);
+            background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;
+        }
+        .catalog-link {
+            display: inline-block; margin-top: 3px;
+            color: var(--blue); text-decoration: none; font-weight: bold;
+        }
+        .catalog-link:hover { text-shadow: 0 0 8px rgba(0,136,255,0.5); }
+
+        /* === STEALTH MODE === */
+        .stealth #app-container { filter: blur(10px); pointer-events: none; opacity: 0.3; }
+        .overlay {
+            position: fixed; inset: 0; background: rgba(2,2,8,0.96);
+            display: none; justify-content: center; align-items: center;
+            z-index: 999; backdrop-filter: blur(16px);
+        }
+        .pin-box {
+            background: var(--surface); padding: 24px; border-radius: 12px;
+            text-align: center; width: 90%; max-width: 280px;
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+        }
+        .pin-input {
+            width: 100%; text-align: center; font-size: 1.4rem;
+            padding: 10px; background: rgba(255,255,255,0.06);
+            color: var(--text); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; margin: 14px 0; letter-spacing: 6px;
+        }
+
+        @media (max-width: 360px) {
+            #app-container { padding: 10px; }
+            .tab-btn { font-size: 8px; padding: 6px 2px; }
+            textarea { height: 55px; font-size: 11px; }
+            .btn { padding: 9px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="top-logo">
+        <img src="favicon.ico" alt="🔐" onerror="this.style.display='none'">
+        <span>ANTI-AI SMS SHIELD v3.0</span>
+    </div>
+
+    <!-- ТРЕХКНОПОЧНЫЙ ХЕДЕР ВКЛАДОК -->
+    <div id="tabs-header">
+        <button class="tab-btn active" onclick="switchTab('tab-chaos', this)">🔤 ТЕКСТ-ХАОС</button>
+        <button class="tab-btn" onclick="switchTab('tab-visual', this)">🖼️ ВИЗУАЛ</button>
+        <button class="tab-btn" onclick="switchTab('tab-crypto', this)">🔐 КРИПТО</button>
+    </div>
+
+    <!-- 1. ВКЛАДКА: ТЕКСТ-ХАОС -->
+    <div id="tab-chaos" class="tab-content active">
+        <div class="section-title">Исходный текст:</div>
+        <textarea id="chaos-src" placeholder="Введите СМС для чата..."></textarea>
+        <button class="btn" onclick="processChaosEncrypt()">🔏 СГЕНЕРИРОВАТЬ ХАОС</button>
+        <div class="section-title">Замаскированный результат:</div>
+        <textarea id="chaos-res" placeholder="ИИ не прочтёт логически..." readonly></textarea>
+        <button class="btn btn-copy" onclick="copyData('chaos-res')">📋 КОПИРОВАТЬ</button>
+        <button class="btn btn-copy" style="margin-top:6px; color:var(--pink); border-color:rgba(255,0,85,0.3);" onclick="processChaosDecrypt()">🔓 РАСШИФРОВАТЬ</button>
+    </div>
+
+    <!-- 2. ВКЛАДКА: ВИЗУАЛ -->
+    <div id="tab-visual" class="tab-content">
+        <div class="section-title">Текст для арта:</div>
+        <textarea id="vis-src" placeholder="Короткая фраза..." style="height:48px;"></textarea>
+        <button class="btn btn-visual" onclick="processVisualEncrypt()">🖼️ ОТРЕНДЕРИТЬ</button>
+        <div id="canvas-wrapper"><canvas id="glitch-canvas"></canvas></div>
+        <button class="btn btn-copy" style="color:var(--pink); border-color:rgba(255,0,85,0.3);" onclick="downloadCanvasImage()">💾 СКАЧАТЬ</button>
+    </div>
+
+    <!-- 3. ВКЛАДКА: КРИПТО (AES-256-GCM) -->
+    <div id="tab-crypto" class="tab-content">
+        <div class="section-title">Текст для шифрования:</div>
+        <textarea id="cry-src" placeholder="Конфиденциальные данные..."></textarea>
+        <div class="section-title">Ключ-пароль:</div>
+        <input type="text" id="cry-key" placeholder="Кодовое слово" value="">
+        <button class="btn btn-copy" style="margin-top:6px; background:rgba(0,255,170,0.1); border-color:var(--accent);" onclick="generateAndFillKey()">🎲 СГЕНЕРИРОВАТЬ КЛЮЧ</button>
+        <button class="btn btn-crypto" onclick="processCryptoEncrypt()">🔐 ЗАШИФРОВАТЬ (AES-256-GCM)</button>
+        <div id="status-badge">СТАТУС: ОЖИДАНИЕ</div>
+        <div class="section-title">Результат Base64:</div>
+        <textarea id="cry-res" placeholder="Зашифрованная строка..." readonly></textarea>
+        <button class="btn btn-copy" onclick="copyData('cry-res')">📋 КОПИРОВАТЬ</button>
+        <button class="btn btn-decrypt" onclick="processCryptoDecrypt()">🔓 РАСШИФРОВАТЬ</button>
+    </div>
+
+    <!-- БЛОК ПОДДЕРЖКИ -->
+    <div id="donate-box">
+        <span style="color: var(--accent); font-weight: bold;">🤝 ПОДДЕРЖАТЬ ПРОЕКТ 💙</span><br>
+        <span style="color:#aaa;">Бесплатно навсегда. Поддержка: <span id="phone-num">8-920-227-56-76</span></span><br>
+        <a href="https://ancf-hue.github.io/" target="_blank" class="catalog-link">🌟 Каталог Anti-AI Shield</a>
+    </div>
+</div>
+
+<!-- СКРЫТЫЙ РЕЖИМ -->
+<div class="overlay" id="stealthOverlay">
+  <div class="pin-box">
+    <p style="margin-bottom:8px; color:var(--accent);">🔒 PIN-ДОСТУП</p>
+    <input type="password" class="pin-input" id="pin" maxlength="4" inputmode="numeric" placeholder="••••">
+    <button class="btn" style="width:100%; margin-top:6px;" onclick="unlock()">Войти</button>
+    <p style="margin-top:10px; font-size:8px; color:var(--muted);">По умолчанию: 1234</p>
+  </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('glitch-canvas');
+    const ctx = canvas.getContext('2d');
+    let audioCtx = null;
+
+    // === AUDIO ===
+    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    function playSound(freq, duration, type='triangle') {
+        initAudio(); if (!audioCtx) return;
+        try {
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+
+    // === NAVIGATION ===
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+        playSound(280, 0.04, 'triangle');
+    }
+
+    // === 🔤 TEXT CHAOS (HOMOGLYPHS + INVISIBLE) ===
+    const homoglyphs = {
+        'А':'Α','а':'α','В':'В','е':'е','К':'Κ','к':'κ','М':'Μ','м':'μ','Н':'Ν','н':'ν',
+        'О':'Ο','о':'ο','Р':'Ρ','р':'ρ','С':'Ϲ','с':'ς','Т':'Τ','т':'τ','Х':'Χ','х':'χ'
+    };
+    const INVISIBLE = ['\u200B','\u200C','\u200D','\uFEFF'];
+
+    function processChaosEncrypt() {
+        let text = document.getElementById('chaos-src').value;
+        if(!text) return;
+        let result = "";
+        for (let i = 0; i < text.length; i++) {
+            let char = text[i];
+            if (homoglyphs[char] && Math.random() > 0.45) {
+                result += homoglyphs[char];
+            } else { result += char; }
+            if (i < text.length - 1 && Math.random() > 0.55) {
+                result += INVISIBLE[Math.floor(Math.random() * INVISIBLE.length)];
+            }
+        }
+        document.getElementById('chaos-res').value = result;
+        playSound(420, 0.05, 'sine');
+    }
+
+    function processChaosDecrypt() {
+        let text = document.getElementById('chaos-res').value || document.getElementById('chaos-src').value;
+        if(!text) return;
+        let clean = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
+        const reverse = {};
+        for(const [orig, repl] of Object.entries(homoglyphs)) { reverse[repl] = orig; }
+        let result = clean.split('').map(c => reverse[c] || c).join('');
+        document.getElementById('chaos-src').value = result;
+        playSound(380, 0.05, 'triangle');
+    }
+
+    // === 🖼️ VISUAL (CANVAS GLITCH) ===
+    function processVisualEncrypt() {
+        let text = document.getElementById('vis-src').value.trim();
+        if(!text) return;
+        const scale = window.devicePixelRatio || 1;
+        canvas.width = 400 * scale; canvas.height = 300 * scale;
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#02020a'; ctx.fillRect(0, 0, 400, 300);
+        
+        // Grid
+        ctx.strokeStyle = 'rgba(0, 255, 170, 0.08)'; ctx.lineWidth = 1;
+        for(let i=0; i<400; i+=14) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,300); ctx.stroke(); }
+        
+        // Text
+        ctx.fillStyle = '#00ffaa'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#00ffaa'; ctx.shadowBlur = 10;
+        ctx.fillText(text, 200, 150);
+        ctx.shadowBlur = 0;
+        
+        // Glitch lines
+        for (let i = 0; i < 16; i++) {
+            ctx.strokeStyle = Math.random() > 0.5 ? '#ff0055' : '#aa00ff';
+            ctx.lineWidth = Math.random() * 1.5 + 0.5;
+            let y = Math.random() * 300;
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(400, y + (Math.random()-0.5)*12); ctx.stroke();
+        }
+        // Noise
+        for(let i=0; i<180; i++) {
+            ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.5})`;
+            ctx.fillRect(Math.random()*400, Math.random()*300, 2, 2);
+        }
+        playSound(580, 0.08, 'square');
+    }
+    function downloadCanvasImage() {
+        const link = document.createElement('a');
+        link.download = 'anti-ai-shield.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        playSound(650, 0.06, 'sine');
+    }
+
+    // === 🔐 CRYPTO (AES-256-GCM + PBKDF2) ===
+    const CRYPTO_CONFIG = {
+        iterations: 150000, saltLength: 16, ivLength: 12, keyLength: 256
+    };
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    async function deriveKey(password, salt) {
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']
+        );
+        return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt, iterations: CRYPTO_CONFIG.iterations, hash: 'SHA-256' },
+            keyMaterial,
+            { name: 'AES-GCM', length: CRYPTO_CONFIG.keyLength },
+            false, ['encrypt', 'decrypt']
+        );
+    }
+
+    async function processCryptoEncrypt() {
+        const text = document.getElementById('cry-src').value.trim();
+        const key = document.getElementById('cry-key').value.trim();
+        const badge = document.getElementById('status-badge');
+        
+        if (!text || !key) {
+            badge.innerText = "⚠️ ВВЕДИТЕ ТЕКСТ И КЛЮЧ";
+            badge.className = "";
+            return;
+        }
+        
+        try {
+            const salt = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.saltLength));
+            const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_CONFIG.ivLength));
+            const cryptoKey = await deriveKey(key, salt);
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv }, cryptoKey, encoder.encode(text)
+            );
+            
+            const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.length);
+            combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+            
+            const b64 = btoa(String.fromCharCode(...combined));
+            document.getElementById('cry-res').value = b64;
+            
+            badge.innerText = "✅ AES-256-GCM: ШИФРОВАНИЕ УСПЕШНО";
+            badge.className = "verified";
+            playSound(520, 0.07, 'sine');
+            
+        } catch (e) {
+            badge.innerText = "❌ ОШИБКА ШИФРОВАНИЯ";
+            badge.className = "";
+            console.error(e);
+            playSound(180, 0.1, 'sawtooth');
+        }
+    }
+
+    async function processCryptoDecrypt() {
+        const b64 = document.getElementById('cry-src').value.trim();
+        const key = document.getElementById('cry-key').value.trim();
+        const badge = document.getElementById('status-badge');
+        
+        if (!b64 || !key) {
+            badge.innerText = "⚠️ ВВЕДИТЕ КОД И КЛЮЧ";
+            badge.className = "";
+            return;
+        }
+        
+        try {
+            const combined = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            const salt = combined.slice(0, CRYPTO_CONFIG.saltLength);
+            const iv = combined.slice(CRYPTO_CONFIG.saltLength, CRYPTO_CONFIG.saltLength + CRYPTO_CONFIG.ivLength);
+            const ciphertext = combined.slice(CRYPTO_CONFIG.saltLength + CRYPTO_CONFIG.ivLength);
+            
+            const cryptoKey = await deriveKey(key, salt);
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv }, cryptoKey, ciphertext
+            );
+            
+            const plaintext = decoder.decode(decrypted);
+            document.getElementById('cry-src').value = plaintext;
+            
+            badge.innerText = "✅ РАСШИФРОВАНО: AES-256-GCM";
+            badge.className = "verified";
+            playSound(700, 0.08, 'sine');
+            
+        } catch (e) {
+            badge.innerText = "❌ НЕВЕРНЫЙ ПАРОЛЬ ИЛИ ПОВРЕЖДЕННЫЕ ДАННЫЕ";
+            badge.className = "";
+            console.error(e);
+            playSound(180, 0.1, 'sawtooth');
+        }
+    }
+
+    function generateSecureKey() {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        return btoa(String.fromCharCode(...bytes))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function generateAndFillKey() {
+        const key = generateSecureKey();
+        document.getElementById('cry-key').value = key;
+        playSound(440, 0.05, 'sine');
+        const badge = document.getElementById('status-badge');
+        badge.innerText = "🔑 КЛЮЧ СГЕНЕРИРОВАН (сохраните его!)";
+        badge.className = "verified";
+    }
+
+    // === UTILS ===
+    function copyData(elementId) {
+        let txt = document.getElementById(elementId).value;
+        if(!txt) return;
+        navigator.clipboard.writeText(txt).then(() => {
+            playSound(400, 0.03, 'triangle');
+            const btn = event.target;
+            const orig = btn.textContent;
+            btn.textContent = "✅ СКОПИРОВАНО";
+            setTimeout(() => btn.textContent = orig, 1500);
+        }).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = txt; document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+            playSound(400, 0.03, 'triangle');
+        });
+    }
+
+    // === STEALTH MODE ===
+    function toggleStealth() {
+        if(!localStorage.getItem('antiAI_sms_pin')) {
+            const p = prompt("🔑 Установите PIN (4 цифры):", "1234");
+            if(p && /^\d{4}$/.test(p)) localStorage.setItem('antiAI_sms_pin', p);
+        }
+        document.body.classList.add('stealth');
+        document.getElementById('stealthOverlay').style.display = 'flex';
+        document.getElementById('pin').focus();
+    }
+    function unlock() {
+        const pin = document.getElementById('pin').value;
+        if(pin === (localStorage.getItem('antiAI_sms_pin') || '1234')) {
+            document.body.classList.remove('stealth');
+            document.getElementById('stealthOverlay').style.display = 'none';
+            document.getElementById('pin').value = '';
+        } else {
+            alert("❌ Неверный PIN");
+            document.getElementById('pin').value = '';
+        }
+    }
+    document.getElementById('top-logo').addEventListener('click', toggleStealth);
+    document.getElementById('pin').addEventListener('keypress', e => { if(e.key==='Enter') unlock(); });
+
+    // === INIT ===
+    document.addEventListener('DOMContentLoaded', () => {
+        function resizeCanvas() {
+            const wrap = document.getElementById('canvas-wrapper');
+            const scale = window.devicePixelRatio || 1;
+            canvas.width = wrap.clientWidth * scale;
+            canvas.height = wrap.clientHeight * scale;
+            ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    });
+</script>
+</body>
+</html>
